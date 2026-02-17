@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCG Profit</title>
+
+<style>
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  background:#0f1115;
+  color:#fff;
+}
+.container{
+  padding:16px;
+  padding-bottom:120px;
+}
+h2{ margin: 6px 0 14px; }
+.card{
+  background:#1a1d24;
+  padding:14px;
+  border-radius:12px;
+  margin-bottom:12px;
+}
+input, select{
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  border-radius:8px;
+  border:none;
+  background:#2a2f38;
+  color:#fff;
+}
+button{
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+  border:none;
+  border-radius:10px;
+  font-size:16px;
+  cursor:pointer;
+}
+.calc{ background:#3b82f6; color:#fff; }
+.save{ background:#22c55e; color:#fff; }
+.danger{ background:#ef4444; color:#fff; }
+.result{
+  text-align:center;
+  font-size:26px;
+  font-weight:800;
+  margin-top:10px;
+}
+.small{
+  opacity:.85;
+  font-size:12px;
+  line-height:1.4;
+}
+.row{
+  display:flex;
+  gap:8px;
+}
+.row > *{ flex:1; }
+.tabs{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#15181e;
+  display:flex;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.tab{
+  flex:1;
+  text-align:center;
+  padding:14px 8px;
+  cursor:pointer;
+  user-select:none;
+}
+.tab.active{
+  background:#1a1d24;
+}
+.hidden{ display:none; }
+.preview{
+  width:100%;
+  margin-top:8px;
+  border-radius:10px;
+}
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:6px;
+}
+.grid img{
+  width:100%;
+  border-radius:8px;
+}
+.pillbar{
+  display:flex;
+  gap:8px;
+}
+.pill{
+  flex:1;
+  background:#2a2f38;
+  padding:10px;
+  border-radius:10px;
+  text-align:center;
+  font-weight:700;
+  cursor:pointer;
+}
+.pill.active{
+  outline:2px solid rgba(34,197,94,.7);
+}
+.pill.orange.active{
+  outline:2px solid rgba(59,130,246,.7);
+}
+.line{
+  height:1px;
+  background:rgba(255,255,255,.08);
+  margin:10px 0;
+}
+.chips{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.chip{
+  background:#2a2f38;
+  padding:8px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+  user-select:none;
+}
+.chip.active{
+  outline:2px solid rgba(34,197,94,.7);
+}
+.chip.blue.active{
+  outline:2px solid rgba(59,130,246,.7);
+}
+.chip.red.active{
+  outline:2px solid rgba(239,68,68,.75);
+}
+
+/* flip list: thumbnail on the left */
+.flip-row{
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+}
+.thumb{
+  width:84px;
+  height:84px;
+  border-radius:10px;
+  object-fit:cover;
+  flex:0 0 84px;
+  background:#2a2f38;
+}
+
+/* summary */
+.summary-wrap{
+  display:flex;
+  gap:10px;
+}
+.summary-box{
+  flex:1;
+  background:#2a2f38;
+  border-radius:12px;
+  padding:12px;
+}
+.summary-label{
+  font-size:11px;
+  opacity:.85;
+  font-weight:800;
+}
+.summary-value{
+  margin-top:6px;
+  font-size:18px;
+  font-weight:900;
+}
+</style>
+</head>
+
+<body>
+
+<!-- HOME -->
+<div id="home" class="container">
+  <h2>💰 利益計算</h2>
+
+  <div class="card">
+    <input id="cardName" placeholder="カード名">
+    <input type="file" accept="image/*" onchange="previewCardImage(event)">
+    <img id="cardImagePreview" class="preview hidden">
+
+    <div class="row">
+      <input id="shopName" placeholder="購入ショップ名">
+      <input id="sellShopName" placeholder="売却済み店舗（フリマ/店名）">
+    </div>
+
+    <div class="row">
+      <div style="flex:1;">
+        <div class="small" style="margin-bottom:4px;">（買った日付）</div>
+        <div class="row">
+          <input id="buyDate" type="date" onfocus="autofillYear(this)">
+          <button type="button" onclick="setToday('buyDate')" style="width:80px;background:#3b82f6;">今日</button>
+        </div>
+      </div>
+      <div style="flex:1;">
+        <div class="small" style="margin-bottom:4px;">（売った日付）</div>
+        <div class="row">
+          <input id="sellDate" type="date" onfocus="autofillYear(this)">
+          <button type="button" onclick="setToday('sellDate')" style="width:80px;background:#3b82f6;">今日</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div style="flex:1;">
+        <div class="small" style="margin-bottom:4px;">（枚数）</div>
+        <input id="quantity" type="number" placeholder="カード枚数" value="1">
+      </div>
+      <div style="flex:1;">
+        <div class="small" style="margin-bottom:4px;">（仕入れ/1枚）</div>
+        <input id="purchase" type="number" placeholder="仕入れ価格（1枚）">
+      </div>
+    </div>
+
+    <div class="card" style="background:#15181e;">
+      <div class="small" style="font-weight:800; opacity:.95;">鑑定費プラン（1枚あたり）</div>
+      <select id="psaPlan" onchange="applyPsaPlan()">
+        <option value="custom" selected>手入力</option>
+        <option value="value_bulk">¥3,980</option>
+        <option value="value">¥4,980</option>
+        <option value="value_plus">¥7,980</option>
+        <option value="value_max">¥8,980</option>
+        <option value="regular">¥11,980</option>
+        <option value="express">¥22,980</option>
+        <option value="superexpress">¥44,980</option>
+        <option value="walkthrough">¥89,980</option>
+        <option value="premium1">¥149,980</option>
+        <option value="premium2">¥299,980</option>
+        <option value="premium3">¥449,980</option>
+        <option value="premium5">¥749,980</option>
+        <option value="premium10">¥1,499,980</option>
+      </select>
+      <div class="row">
+        <input id="psaFee" type="number" placeholder="鑑定費（1枚）">
+        <input id="shipping" type="number" placeholder="送料・雑費（合計）">
+      </div>
+      <div class="small">※プランを選ぶと鑑定費に自動反映（あとで好きに上書きOK）</div>
+    </div>
+
+    <div class="row">
+      <input id="sellPrice" type="number" placeholder="売った金額（1枚）">
+      <input id="psa10" type="number" placeholder="PSA10価格（未売却時の参考）">
+    <textarea id="memo" rows="3" placeholder="詳細等" style="width:100%;padding:10px;margin:6px 0;border-radius:8px;border:none;background:#2a2f38;color:#fff;"></textarea>
+
+    </div>
+
+    <button class="calc" onclick="calculate()">計算</button>
+    <button class="save" onclick="saveFlip()">計算結果を保存（保存後クリア）</button>
+
+    <div id="result" class="result"></div>
+    <div class="small">※売った金額が入力されていれば実利益、未入力ならPSA10価格を見込み売上にして計算します。</div>
+  </div>
+</div>
+
+<!-- FLIPS -->
+<div id="flips" class="container hidden">
+  <h2>📊 売上管理</h2>
+
+  <!-- NEW: summary (for filtered list) -->
+  <div class="card" id="summaryCard">
+    <div class="summary-wrap">
+      <div class="summary-box">
+        <div class="summary-label">表示中の件数</div>
+        <div class="summary-value" id="sumCount">0 件</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-label">合計利益（表示中）</div>
+        <div class="summary-value" id="sumProfit">0 円</div>
+      </div>
+    </div>
+    <div class="summary-wrap" style="margin-top:10px;">
+      <div class="summary-box">
+        <div class="summary-label">売上合計（表示中）</div>
+        <div class="summary-value" id="sumRevenue">0 円</div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-label">仕入れ合計（表示中）</div>
+        <div class="summary-value" id="sumPurchase">0 円</div>
+      </div>
+    </div>
+
+    <div class="line"></div>
+    <div class="small">※フィルタ（売れた/未売却・利益＋/−・検索）で絞った “表示中” の合計です。</div>
+    <div class="line"></div>
+    <div class="small" style="font-weight:900; opacity:.95;">月ごとの利益（売却日ベース）</div>
+    <div class="small">※売却日が入っているデータだけ集計します。</div>
+    <div id="monthlyList" class="small" style="margin-top:8px;"></div>
+  </div>
+
+  <div class="card">
+    <input id="searchName" placeholder="検索（カード名）" oninput="loadFlips()">
+
+    <div class="row">
+      <select id="monthFilterMode" onchange="loadFlips()">
+        <option value="sell" selected>売却月で絞る</option>
+        <option value="buy">購入月で絞る</option>
+      </select>
+      <input id="monthFilter" type="month" onchange="loadFlips()">
+    </div>
+    <div class="small">※「2026-02」みたいに月で絞り込み。空なら全期間。</div>
+
+
+    <div class="pillbar">
+      <div id="sortSell" class="pill active" onclick="setSortMode('sell')">売却日順</div>
+      <div id="sortBuy" class="pill orange" onclick="setSortMode('buy')">購入日順</div>
+    </div>
+
+    <div class="chips">
+      <div id="filterAll" class="chip active" onclick="setStatusFilter('all')">全て</div>
+      <div id="filterSold" class="chip blue" onclick="setStatusFilter('sold')">売れた</div>
+      <div id="filterUnsold" class="chip" onclick="setStatusFilter('unsold')">未売却</div>
+      <div id="filterProfitPlus" class="chip" onclick="setProfitFilter('plus')">利益＋</div>
+      <div id="filterProfitMinus" class="chip red" onclick="setProfitFilter('minus')">利益−</div>
+    </div>
+
+    <div class="line"></div>
+    <div class="small">
+      ・「売れた」= 売却日あり / 「未売却」= 売却日なし<br>
+      ・利益＋/− は保存した利益を基準に絞り込み<br>
+      ・検索はカード名で絞り込み（売上管理）<br>
+      ・月フィルタで「売却月 / 購入月」を絞り込み
+    </div>
+    <button class="danger" onclick="clearFlips()">保存データを全削除</button>
+  </div>
+
+  <div id="flipList"></div>
+</div>
+
+<!-- RECEIPTS -->
+<div id="receipts" class="container hidden">
+  <h2>🧾 レシートアルバム</h2>
+
+  <div class="card">
+    <input id="albumName" placeholder="アルバム名（例：10月仕入れレシート、8月売却レシート）">
+    <button class="save" onclick="createAlbum()">アルバム作成</button>
+    <div class="small">※画像は端末内に保存されます。画像が多いと重くなることがあります。</div>
+  </div>
+
+  <div id="albumList"></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" class="container hidden">
+  <h2>⚙️ 設定</h2>
+  <div class="card">設定は今後追加予定</div>
+</div>
+
+<div class="tabs">
+  <div id="tab-home" class="tab active" onclick="showTab('home')">🏠</div>
+  <div id="tab-flips" class="tab" onclick="showTab('flips')">📊</div>
+  <div id="tab-receipts" class="tab" onclick="showTab('receipts')">🧾</div>
+  <div id="tab-settings" class="tab" onclick="showTab('settings')">⚙️</div>
+</div>
+
+<script>
+/* ===== Shared state ===== */
+let lastProfit = 0;
+let lastRevenuePerCard = 0;
+let lastTotalRevenue = 0;
+let lastTotalCost = 0;
+let lastCardImage = "";
+let sortMode = "sell";         // 'sell' or 'buy'
+let statusFilter = "all";      // 'all' | 'sold' | 'unsold'
+let profitFilter = "any";      // 'any' | 'plus' | 'minus'
+// PSA plan presets (¥ per card) - based on your provided latest PSA pricing
+const PSA_PLAN_FEES = {
+  custom: null,
+  value_bulk: 3980,
+  value: 4980,
+  value_plus: 7980,
+  value_max: 8980,
+  regular: 11980,
+  express: 22980,
+  superexpress: 44980,
+  walkthrough: 89980,
+  premium1: 149980,
+  premium2: 299980,
+  premium3: 449980,
+  premium5: 749980,
+  premium10: 1499980
+};
+
+function applyPsaPlan(){
+  const planEl = document.getElementById("psaPlan");
+  const feeEl = document.getElementById("psaFee");
+  if(!planEl || !feeEl) return;
+
+  const plan = planEl.value;
+  const fee = PSA_PLAN_FEES[plan];
+  if(fee !== null && fee !== undefined){
+    feeEl.value = String(fee);
+  }
+}
+
+
+function fmtYen(n){
+  const x = Number(n) || 0;
+  return x.toLocaleString("ja-JP") + " 円";
+}
+function safeDateVal(v){
+  return (v && typeof v === "string") ? v : "";
+}
+function dateKey(d){
+  if(!d) return "0000-00-00";
+  return d;
+}
+
+/* ===== Auto-fill year for date inputs ===== */
+function setToday(id){
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth()+1).padStart(2,"0");
+  const dd = String(now.getDate()).padStart(2,"0");
+  document.getElementById(id).value = `${yyyy}-${mm}-${dd}`;
+}
+
+function autofillYear(el){
+  if(!el.value){
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth()+1).padStart(2,"0");
+    const dd = String(now.getDate()).padStart(2,"0");
+    el.value = `${yyyy}-${mm}-${dd}`;
+  }
+}
+
+/* ===== Image preview ===== */
+function previewCardImage(event){
+  const file = event.target.files && event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = document.getElementById("cardImagePreview");
+    img.src = e.target.result;
+    img.classList.remove("hidden");
+    lastCardImage = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ===== Profit calculation ===== */
+function calculate(){
+  const quantity = Number(document.getElementById("quantity").value) || 1;
+  const purchase = Number(document.getElementById("purchase").value) || 0; // per card
+  const psaFee  = Number(document.getElementById("psaFee").value) || 0;    // per card
+  const shipping = Number(document.getElementById("shipping").value) || 0; // total
+  const sellPrice = Number(document.getElementById("sellPrice").value) || 0; // per card
+  const psa10 = Number(document.getElementById("psa10").value) || 0;
+  const memo = document.getElementById("memo").value || ""; // per card reference
+
+  const revenuePerCard = sellPrice > 0 ? sellPrice : psa10;
+  const totalRevenue = revenuePerCard * quantity;
+  const totalCost = (purchase + psaFee) * quantity + shipping;
+  const profit = Math.round(totalRevenue - totalCost);
+
+  lastProfit = profit;
+  lastRevenuePerCard = revenuePerCard;
+  lastTotalRevenue = totalRevenue;
+  lastTotalCost = totalCost;
+
+  const result = document.getElementById("result");
+  result.innerHTML = fmtYen(profit);
+  result.style.color = profit >= 0 ? "#22c55e" : "#ef4444";
+}
+
+/* ===== Flips save/list ===== */
+function getFlips(){ return JSON.parse(localStorage.getItem("flips") || "[]"); }
+function setFlips(arr){ localStorage.setItem("flips", JSON.stringify(arr)); }
+
+function clearHomeInputs(){
+  const ids = [
+    "cardName","shopName","sellShopName","buyDate","sellDate","quantity","purchase",
+    "psaFee","shipping","sellPrice","psa10","memo"
+  ];
+  ids.forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(id === "quantity") el.value = "1";
+    else el.value = "";
+  });
+
+  const planEl = document.getElementById('psaPlan');
+  if(planEl) planEl.value = 'custom';
+
+  const fileInputs = document.querySelectorAll("#home input[type='file']");
+  fileInputs.forEach(fi=> fi.value = "");
+
+  const img = document.getElementById("cardImagePreview");
+  img.src = "";
+  img.classList.add("hidden");
+  lastCardImage = "";
+
+  const result = document.getElementById("result");
+  result.innerHTML = "";
+}
+
+function saveFlip(){
+  calculate();
+
+  const name = document.getElementById("cardName").value || "名称未設定";
+  const shop = document.getElementById("shopName").value || "不明";
+  const sellShopName = document.getElementById("sellShopName").value || "";
+  const buyDate = safeDateVal(document.getElementById("buyDate").value);
+  const sellDate = safeDateVal(document.getElementById("sellDate").value);
+
+  const quantity = Number(document.getElementById("quantity").value) || 1;
+  const purchase = Number(document.getElementById("purchase").value) || 0;
+  const psaFee  = Number(document.getElementById("psaFee").value) || 0;
+  const shipping = Number(document.getElementById("shipping").value) || 0;
+
+  const sellPrice = Number(document.getElementById("sellPrice").value) || 0;
+  const psa10 = Number(document.getElementById("psa10").value) || 0;
+  const memo = document.getElementById("memo").value || "";
+
+  const flips = getFlips();
+  flips.push({
+    id: Date.now(),
+    name, shop, sellShopName,
+    image: lastCardImage,
+    buyDate, sellDate,
+    quantity,
+    purchase, psaFee, shipping,
+    sellPrice,
+    psa10,
+    memo,
+    revenuePerCard: lastRevenuePerCard,
+    totalRevenue: lastTotalRevenue,
+    totalCost: lastTotalCost,
+    profit: lastProfit
+  });
+  setFlips(flips);
+
+  alert("保存しました（入力をクリアしました）");
+  clearHomeInputs();
+}
+
+/* ===== Sorting + Filtering UI ===== */
+function setSortMode(mode){
+  sortMode = mode;
+  document.getElementById("sortSell").classList.toggle("active", mode === "sell");
+  document.getElementById("sortBuy").classList.toggle("active", mode === "buy");
+  loadFlips();
+}
+
+function setStatusFilter(mode){
+  statusFilter = mode;
+  document.getElementById("filterAll").classList.toggle("active", mode === "all");
+  document.getElementById("filterSold").classList.toggle("active", mode === "sold");
+  document.getElementById("filterUnsold").classList.toggle("active", mode === "unsold");
+  loadFlips();
+}
+
+function setProfitFilter(mode){
+  if(profitFilter === mode){
+    profitFilter = "any";
+  }else{
+    profitFilter = mode;
+  }
+  document.getElementById("filterProfitPlus").classList.toggle("active", profitFilter === "plus");
+  document.getElementById("filterProfitMinus").classList.toggle("active", profitFilter === "minus");
+  loadFlips();
+}
+
+function applyFilters(flips){
+  const q = (document.getElementById("searchName").value || "").trim().toLowerCase();
+  const monthVal = (document.getElementById("monthFilter").value || "").trim(); // YYYY-MM
+  const monthMode = (document.getElementById("monthFilterMode").value || "sell");
+
+  return flips.filter(f=>{
+    const sold = !!(f.sellDate && String(f.sellDate).trim());
+    // 月フィルタ（YYYY-MM）
+    if(monthVal){
+      const targetDate = (monthMode === "buy") ? (f.buyDate || "") : (f.sellDate || "");
+      // 売却月フィルタで未売却を除外したい場合は targetDateが空で弾かれる
+      if(!targetDate || String(targetDate).slice(0,7) !== monthVal) return false;
+    }
+
+    if(statusFilter === "sold" && !sold) return false;
+    if(statusFilter === "unsold" && sold) return false;
+
+    const p = Number(f.profit) || 0;
+    if(profitFilter === "plus" && p < 0) return false;
+    if(profitFilter === "minus" && p >= 0) return false;
+
+    if(q){
+      const name = String(f.name || "").toLowerCase();
+      if(!name.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function updateSummary(flips){
+  const count = flips.length;
+  const totalProfit = flips.reduce((acc,f)=> acc + (Number(f.profit)||0), 0);
+  const totalRevenue = flips.reduce((acc,f)=> acc + (Number(f.totalRevenue)||0), 0);
+  const totalPurchase = flips.reduce((acc,f)=> acc + ((Number(f.purchase)||0) * (Number(f.quantity)||0)), 0);
+
+  document.getElementById("sumCount").textContent = count.toLocaleString("ja-JP") + " 件";
+  const profitEl = document.getElementById("sumProfit");
+  profitEl.textContent = fmtYen(Math.round(totalProfit));
+  profitEl.style.color = totalProfit >= 0 ? "#22c55e" : "#ef4444";
+  const revEl = document.getElementById("sumRevenue");
+  if(revEl){ revEl.textContent = fmtYen(Math.round(totalRevenue)); revEl.style.color = "#fff"; }
+  const purEl = document.getElementById("sumPurchase");
+  if(purEl){ purEl.textContent = fmtYen(Math.round(totalPurchase)); purEl.style.color = "#fff"; }
+}
+
+function renderMonthlyProfit(flips){
+  // sold items only, use sellDate's YYYY-MM
+  const sold = flips.filter(f => f.sellDate && String(f.sellDate).trim());
+  const map = new Map(); // key: YYYY-MM, value: profit sum
+  sold.forEach(f=>{
+    const d = String(f.sellDate);
+    const key = d.slice(0,7); // YYYY-MM
+    const p = Number(f.profit) || 0;
+    map.set(key, (map.get(key) || 0) + p);
+  });
+
+  // sort by month desc
+  const items = Array.from(map.entries()).sort((a,b)=> b[0].localeCompare(a[0]));
+
+  const el = document.getElementById("monthlyList");
+  if(!el) return;
+
+  if(items.length === 0){
+    el.innerHTML = "売却日が入っているデータがありません。";
+    return;
+  }
+
+  el.innerHTML = items.map(([ym, sum])=>{
+    const label = ym.replace("-", "年") + "月";
+    const val = fmtYen(Math.round(sum));
+    const color = sum >= 0 ? "#22c55e" : "#ef4444";
+    return `<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06);">
+      <div>${label}</div>
+      <div style="font-weight:900;color:${color};">${val}</div>
+    </div>`;
+  }).join("");
+}
+
+
+function loadFlips(){
+  const container = document.getElementById("flipList");
+  container.innerHTML = "";
+
+  let flips = getFlips();
+  flips = applyFilters(flips);
+
+  // update summary before sorting (same list)
+  updateSummary(flips);
+  renderMonthlyProfit(flips);
+
+  if(sortMode === "sell"){
+    flips.sort((a,b)=>{
+      const aSold = !!a.sellDate;
+      const bSold = !!b.sellDate;
+      if(aSold !== bSold) return aSold ? -1 : 1;
+      if(aSold && bSold){
+        return dateKey(b.sellDate).localeCompare(dateKey(a.sellDate));
+      }
+      return dateKey(b.buyDate).localeCompare(dateKey(a.buyDate));
+    });
+  }else{
+    flips.sort((a,b)=> dateKey(b.buyDate).localeCompare(dateKey(a.buyDate)));
+  }
+
+  if(flips.length === 0){
+    const empty = document.createElement("div");
+    empty.className = "card";
+    empty.innerHTML = "条件に一致するデータがありません。<br><span class='small'>フィルタを「全て」に戻すか、検索を消して、利益計算で保存してください。</span>";
+    container.appendChild(empty);
+    return;
+  }
+
+  flips.forEach(f=>{
+    const div = document.createElement("div");
+    div.className = "card";
+    const profitColor = (Number(f.profit)||0) >= 0 ? "#22c55e" : "#ef4444";
+
+    div.innerHTML = `
+      <div class="flip-row">
+        ${f.image ? `<img src="${f.image}" class="thumb">` : `<div class="thumb"></div>`}
+        <div style="flex:1;">
+          <div style="font-weight:900; font-size:16px;">${f.name}</div>
+          <div class="small">購入：${f.shop}　${f.buyDate || "-"}</div>
+          <div class="small">売却：${f.sellShopName ? f.sellShopName : "-"}　${f.sellDate || "-"}</div>
+          <div class="small">メモ：${f.memo ? f.memo.replace(/\n/g,"<br>") : "-"}<br>枚数：${f.quantity}　仕入れ(1枚)：${fmtYen(f.purchase)}　売値(1枚)：${f.sellPrice ? fmtYen(f.sellPrice) : "-"}</div>
+        </div>
+      </div>
+
+      <div class="line"></div>
+      <div style="font-size:20px; font-weight:900; color:${profitColor}; text-align:center;">
+        ${fmtYen(f.profit)}
+      </div>
+      <div class="small" style="text-align:center;">
+        売上合計：${fmtYen(f.totalRevenue)} ／ コスト合計：${fmtYen(f.totalCost)}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function clearFlips(){
+  if(confirm("本当に全削除しますか？")){
+    localStorage.removeItem("flips");
+    // reset summary too
+    updateSummary([]);
+    loadFlips();
+  }
+}
+
+/* ===== Receipt albums ===== */
+function createAlbum(){
+  const name = document.getElementById("albumName").value;
+  if(!name) return alert("アルバム名を入力してください");
+
+  const albums = JSON.parse(localStorage.getItem("albums")||"[]");
+  albums.push({name:name,images:[]});
+  localStorage.setItem("albums",JSON.stringify(albums));
+  document.getElementById("albumName").value="";
+  loadAlbums();
+}
+function loadAlbums(){
+  const container = document.getElementById("albumList");
+  container.innerHTML="";
+  const albums = JSON.parse(localStorage.getItem("albums")||"[]");
+
+  albums.forEach((album,index)=>{
+    const div=document.createElement("div");
+    div.className="card";
+    div.innerHTML = `
+      <div style="font-weight:800; margin-bottom:8px;">${album.name}</div>
+      <input type="file" multiple accept="image/*" onchange="addImages(event,${index})">
+      <div class="grid"></div>
+    `;
+    container.appendChild(div);
+
+    const grid = div.querySelector(".grid");
+    album.images.forEach(img=>{
+      const image=document.createElement("img");
+      image.src=img;
+      grid.appendChild(image);
+    });
+  });
+}
+function addImages(event,index){
+  const files = event.target.files;
+  const albums = JSON.parse(localStorage.getItem("albums")||"[]");
+
+  Array.from(files).forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = function(e){
+      albums[index].images.push(e.target.result);
+      localStorage.setItem("albums",JSON.stringify(albums));
+      loadAlbums();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ===== Tabs ===== */
+function showTab(id){
+  ["home","flips","receipts","settings"].forEach(t=>{
+    document.getElementById(t).classList.add("hidden");
+  });
+  document.getElementById(id).classList.remove("hidden");
+
+  ["home","flips","receipts","settings"].forEach(t=>{
+    document.getElementById("tab-"+t).classList.remove("active");
+  });
+  document.getElementById("tab-"+id).classList.add("active");
+
+  if(id==="flips") loadFlips();
+  if(id==="receipts") loadAlbums();
+}
+showTab("home");
+</script>
+
+</body>
+</html>
